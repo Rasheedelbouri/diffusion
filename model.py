@@ -79,11 +79,17 @@ class UNet(nn.Module):
         self.squeeze = [Block(self.nodes[i], self.nodes[i+1], attn=True) for i in range(len(self.nodes)-1)]
         self.unsqueeze = [Block(self.nodes[i], self.nodes[i-1], attn=True) for i in range(len(self.nodes)-1, 0, -1)]
 
-    def forward(self, X, conditon=None):
+        self.pos_emb = SinusoidalPositionEmbeddings(32)
+        self.pos_linear = nn.Linear(32, self.nodes[0])
+        self.lrelu = nn.LeakyReLU(negative_slope=0.2)
 
+    def forward(self, X, t, conditon=None):
+
+        time = self.lrelu(self.pos_linear(self.pos_emb(t)))
         if condition:
             X = X + condition
 
+        X = X + time
         squeeze_latents = [X]
         for b in self.squeeze:
             X = b(X)
