@@ -1,8 +1,7 @@
 from model import UNet
 
-from utils.utils import SinusoidalPositionEmbeddings
-
 
 if __name__ == '__main__':
-    nodes = [100, 250, 500, 1000]
+    nodes = [500, 250, 100]
     model = UNet(nodes)
+    import pdb; pdb.set_trace()

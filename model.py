@@ -24,7 +24,7 @@ class Attention(nn.Module):
         self.input_dims = input_dims
         self.hidden_dims = hidden_dims
 
-        self.Q = nn.Linear(self.input_dims, self.hidden_dims, grad=True)
+        self.Q = nn.Linear(self.input_dims, self.hidden_dims)
         self.K = nn.Linear(self.input_dims, self.hidden_dims)
         self.V = nn.Linear(self.input_dims, self.hidden_dims)
 
@@ -71,21 +71,33 @@ class Block(nn.Module):
         return self.dropout(self.lrelu(self.batchnorm(self.linear(X))))
 
 
+class timeMLP(nn.Module):
+
+    def __init__(self, dim):
+        super().__init__()
+        self.pos_emb = SinusoidalPositionEmbeddings(32)
+        self.pos_linear = nn.Linear(32, dim)
+        self.lrelu = nn.LeakyReLU(negative_slope=0.2)
+
+    def forward(self, t):
+        return self.lrelu(self.pos_linear(self.pos_emb(t)))
+
+
+
 class UNet(nn.Module):
 
     def __init__(self, nodes: list):
         super().__init__()
         self.nodes = nodes
-        self.squeeze = [Block(self.nodes[i], self.nodes[i+1], attn=True) for i in range(len(self.nodes)-1)]
-        self.unsqueeze = [Block(self.nodes[i], self.nodes[i-1], attn=True) for i in range(len(self.nodes)-1, 0, -1)]
+        self.time_layer = timeMLP(self.nodes[0])
+        self.squeeze = nn.ModuleList([Block(self.nodes[i], self.nodes[i+1], attn=True) for i in range(len(self.nodes)-1)])
+        self.unsqueeze = nn.ModuleList([Block(self.nodes[i], self.nodes[i-1], attn=True) for i in range(len(self.nodes)-1, 0, -1)])
 
-        self.pos_emb = SinusoidalPositionEmbeddings(32)
-        self.pos_linear = nn.Linear(32, self.nodes[0])
-        self.lrelu = nn.LeakyReLU(negative_slope=0.2)
 
     def forward(self, X, t, conditon=None):
 
-        time = self.lrelu(self.pos_linear(self.pos_emb(t)))
+        time = self.time_layer(t)
+
         if condition:
             X = X + condition
 
