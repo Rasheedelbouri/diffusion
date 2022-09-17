@@ -39,7 +39,7 @@ class Attention(nn.Module):
         K_ = self.K(Z)
         V_ = self.V(Z)
 
-        score = (K_.T*Q_)/self.hidden_dims
+        score = (K_*Q_)/self.hidden_dims
         return V_*self.softmax(score)
 
 
@@ -91,10 +91,12 @@ class UNet(nn.Module):
         self.nodes = nodes
         self.time_layer = timeMLP(self.nodes[0])
         self.squeeze = nn.ModuleList([Block(self.nodes[i], self.nodes[i+1], attn=True) for i in range(len(self.nodes)-1)])
-        self.unsqueeze = nn.ModuleList([Block(self.nodes[i], self.nodes[i-1], attn=True) for i in range(len(self.nodes)-1, 0, -1)])
+        self.unsqueeze = nn.ModuleList([Block(self.nodes[-1], self.nodes[-1], attn=True)])
+        for i in range(len(self.nodes)-1, 0, -1):
+            self.unsqueeze.append(Block(self.nodes[i], self.nodes[i-1], attn=True))
 
 
-    def forward(self, X, t, conditon=None):
+    def forward(self, X, t, condition=None):
 
         time = self.time_layer(t)
 
@@ -106,7 +108,6 @@ class UNet(nn.Module):
         for b in self.squeeze:
             X = b(X)
             squeeze_latents.append(X)
-
         for i,b in enumerate(self.unsqueeze):
             X = b(X) + squeeze_latents[len(squeeze_latents)-1 - i]
 
